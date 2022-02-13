@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
 import java.io.OutputStream
 
 private const val IMAGE_JPEG_SUFFIX = ".jpg"
@@ -66,17 +68,28 @@ internal class MediaUtil {
         }
 
         internal fun Context.getMediaUri(): Uri {
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, "${System.currentTimeMillis()}$IMAGE_JPEG_SUFFIX")
-                put(MediaStore.MediaColumns.MIME_TYPE, IMAGE_MIME_TYPE)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, "${System.currentTimeMillis()}$IMAGE_JPEG_SUFFIX")
+                    put(MediaStore.MediaColumns.MIME_TYPE, IMAGE_MIME_TYPE)
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
                 }
+                contentResolver.insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    contentValues
+                )!!
+            } else {
+                val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                if (!directory.exists()) {
+                    directory.mkdir()
+                }
+                val file = File.createTempFile("${System.currentTimeMillis()}", IMAGE_JPEG_SUFFIX, directory)
+                FileProvider.getUriForFile(
+                    this,
+                    this.applicationContext.packageName + ".provider",
+                    file
+                )
             }
-            return contentResolver.insert(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                contentValues
-            )!!
         }
 
         internal fun Context.scanMediaToBitmap(uri: Uri, action: (Bitmap) -> Unit) {
