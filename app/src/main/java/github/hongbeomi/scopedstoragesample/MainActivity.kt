@@ -17,12 +17,16 @@ class MainActivity : AppCompatActivity() {
     private val choosePhoto = registerForActivityResult(ActivityResultContracts.GetContent()) {
         binding.imageViewImageFromGallery.setImageURI(it)
     }
+
     private var photoUri: Uri? = null
-    private val takePhoto = registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
-        if (isSuccess && photoUri != null) {
-            scanMediaToBitmap(photoUri!!) {
-                runOnUiThread {
-                    binding.imageViewImageFromGallery.setImageURI(photoUri!!)
+    private val flexibleTakePicture = FlexibleTakePicture()
+    private val takePhoto = registerForActivityResult(flexibleTakePicture) { isSuccess ->
+        if (isSuccess) {
+            photoUri?.let { uri ->
+                scanMediaToBitmap(uri) {
+                    runOnUiThread {
+                        binding.imageViewImageFromGallery.setImageURI(uri)
+                    }
                 }
             }
         }
@@ -35,15 +39,17 @@ class MainActivity : AppCompatActivity() {
 
         this.checkPermission()
 
-        binding.apply {
+        with(binding) {
             buttonSaveBitmap.setOnClickListener {
                 val bitmapDrawable = imageViewSample.drawable as? BitmapDrawable
                 val bitmap = bitmapDrawable?.bitmap
                 bitmap?.saveToGallery(this@MainActivity)
             }
             buttonTakePhotoSaveToGallery.setOnClickListener {
-                photoUri = this@MainActivity.getMediaUri()
-                takePhoto.launch(photoUri)
+                val intent = flexibleTakePicture.newIntent()
+                photoUri = this@MainActivity.getMediaUri(intent)
+
+                takePhoto.launch(null)
             }
             buttonGetImageFromGallery.setOnClickListener {
                 choosePhoto.launch("image/Pictures/*")

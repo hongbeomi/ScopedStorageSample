@@ -2,6 +2,7 @@ package github.hongbeomi.scopedstoragesample
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
@@ -19,10 +20,10 @@ import java.io.OutputStream
 private const val IMAGE_JPEG_SUFFIX = ".jpg"
 private const val IMAGE_MIME_TYPE = "image/jpeg"
 
-internal class MediaUtil {
+class MediaUtil {
 
     companion object {
-        internal fun Bitmap.saveToGallery(context: Context): Uri? {
+        fun Bitmap.saveToGallery(context: Context): Uri? {
             val imageOutputStream: OutputStream
 
             try {
@@ -67,32 +68,46 @@ internal class MediaUtil {
             return null
         }
 
-        internal fun Context.getMediaUri(): Uri {
+        fun Context.getMediaUri(intent: Intent): Uri {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, "${System.currentTimeMillis()}$IMAGE_JPEG_SUFFIX")
+                    put(
+                        MediaStore.MediaColumns.DISPLAY_NAME,
+                        "${System.currentTimeMillis()}$IMAGE_JPEG_SUFFIX"
+                    )
                     put(MediaStore.MediaColumns.MIME_TYPE, IMAGE_MIME_TYPE)
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
                 }
-                contentResolver.insert(
+                val uri = contentResolver.insert(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     contentValues
                 )!!
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, uri)
+
+                uri
             } else {
-                val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                val directory =
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                 if (!directory.exists()) {
                     directory.mkdir()
                 }
-                val file = File.createTempFile("${System.currentTimeMillis()}", IMAGE_JPEG_SUFFIX, directory)
-                FileProvider.getUriForFile(
-                    this,
-                    this.applicationContext.packageName + ".provider",
-                    file
+                val file = File.createTempFile(
+                    "${System.currentTimeMillis()}",
+                    IMAGE_JPEG_SUFFIX,
+                    directory
                 )
+                intent.putExtra(
+                    MediaStore.EXTRA_OUTPUT, FileProvider.getUriForFile(
+                        this,
+                        this.applicationContext.packageName + ".provider",
+                        file
+                    )
+                )
+                Uri.fromFile(file)
             }
         }
 
-        internal fun Context.scanMediaToBitmap(uri: Uri, action: (Bitmap) -> Unit) {
+        fun Context.scanMediaToBitmap(uri: Uri, action: (Bitmap) -> Unit) {
             MediaScannerConnection.scanFile(this, arrayOf(uri.path), null) { _, _ ->
                 val bmp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     ImageDecoder.decodeBitmap(
