@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
             photoUri?.let { uri ->
                 scanMediaToBitmap(uri) {
                     runOnUiThread {
-                        binding.imageViewImageFromGallery.setImageURI(uri)
+                        binding.imageViewImageFromGallery.setImageBitmap(it)
                     }
                 }
             }
